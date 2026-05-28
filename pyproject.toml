@@ -5,6 +5,8 @@ requires-python = ">=3.13"
 dependencies = [
     "dagster>=1.13.6",
     "dagster-webserver>=1.13.6",
+    "db-dtypes",
+    "google-cloud-bigquery",
     "ipykernel",
     "pandas",
     "pyarrow",

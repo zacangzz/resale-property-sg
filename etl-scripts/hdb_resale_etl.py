@@ -2,6 +2,9 @@ import time
 from pathlib import Path
 import requests
 import pandas as pd
+from bq_helper import get_logger
+
+logger = get_logger("hdb_resale_etl")
 
 DATASET_ID = "d_8b84c4ee58e3cfc0ece0d773c8ca6abc"
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -18,16 +21,16 @@ def download_file(dataset_id: str = DATASET_ID, max_polls: int = 5, poll_interva
     s = requests.Session()
     init = s.get(f"{API_BASE}/{dataset_id}/initiate-download", json={})
     init.raise_for_status()
-    print(init.json()["data"]["message"])
+    logger.info(init.json()["data"]["message"])
 
     for i in range(max_polls):
         poll = s.get(f"{API_BASE}/{dataset_id}/poll-download", json={})
         poll.raise_for_status()
         data = poll.json()["data"]
         if "url" in data:
-            print(f"Download ready (poll {i+1}/{max_polls})")
+            logger.info(f"Download ready (poll {i+1}/{max_polls})")
             return pd.read_csv(data["url"])
-        print(f"{i+1}/{max_polls}: not ready, status={data.get('status')}")
+        logger.warning(f"{i+1}/{max_polls}: not ready, status={data.get('status')}")
         time.sleep(poll_interval)
     raise RuntimeError(f"No download URL after {max_polls} polls")
 

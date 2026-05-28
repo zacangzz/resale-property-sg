@@ -1,0 +1,21 @@
+2026-05-28 22:43:09,046 - mapping_etl - INFO - Geocoding 2 new addresses (0 cached)
+2026-05-28 22:43:09,047 - mapping_etl - INFO -   flushed 1/2
+2026-05-28 22:43:09,048 - mapping_etl - INFO -   flushed 2/2
+2026-05-28 22:43:09,050 - mapping_etl - INFO - Geocodes table: 1 addresses
+2026-05-28 22:43:13,714 - bq_helper - INFO - Initializing BigQuery client for project: resale-property-sg using default auth.
+2026-05-28 22:43:17,100 - bq_helper - INFO - Initializing BigQuery client with credentials: .config/resale-property-sg-d9a2c40ef1b6.json
+2026-05-28 22:43:20,705 - bq_helper - INFO - Initializing BigQuery client with credentials: .config/resale-property-sg-d9a2c40ef1b6.json
+2026-05-28 22:43:32,784 - load_to_bq - INFO - Starting standalone BigQuery load operation...
+2026-05-28 22:43:32,784 - bq_helper - INFO - Initializing BigQuery client with credentials: /Users/zacang/Documents/datascience/resale-property-sg/.config/resale-property-sg-d9a2c40ef1b6.json
+2026-05-28 22:43:32,830 - load_to_bq - INFO - Found transformed HDB resale data at: /Users/zacang/Documents/datascience/resale-property-sg/data/hdbresale_transactions_transformed.parquet
+2026-05-28 22:43:32,830 - bq_helper - INFO - Ensuring dataset 'resale_datasets' exists in location 'US'...
+2026-05-28 22:43:33,645 - bq_helper - INFO - Loading 'hdbresale_transactions_transformed.parquet' into 'resale-property-sg.resale_datasets.resale_hdb'...
+2026-05-28 22:43:40,093 - bq_helper - INFO - BigQuery load job completed successfully.
+2026-05-28 22:43:40,511 - bq_helper - INFO - Successfully verified table in BigQuery. Total rows: 231971
+2026-05-28 22:43:40,511 - load_to_bq - INFO - Found OneMap address geocodes at: /Users/zacang/Documents/datascience/resale-property-sg/data/onemap_address_geocodes.parquet
+2026-05-28 22:43:40,511 - bq_helper - INFO - Ensuring dataset 'resale_datasets' exists in location 'US'...
+2026-05-28 22:43:41,199 - bq_helper - INFO - Loading 'onemap_address_geocodes.parquet' into 'resale-property-sg.resale_datasets.onemap_coord'...
+2026-05-28 22:43:51,246 - bq_helper - INFO - BigQuery load job completed successfully.
+2026-05-28 22:43:51,629 - bq_helper - INFO - Successfully verified table in BigQuery. Total rows: 9710
+2026-05-28 22:43:51,629 - load_to_bq - INFO - Standalone load operation finished.
+2026-05-28 22:43:57,411 - bq_helper - INFO - Initializing BigQuery client with credentials: .config/resale-property-sg-d9a2c40ef1b6.json

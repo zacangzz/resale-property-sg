@@ -4,6 +4,9 @@ from pathlib import Path
 import requests
 import pandas as pd
 from dotenv import load_dotenv
+from bq_helper import get_logger
+
+logger = get_logger("mapping_etl")
 
 load_dotenv()
 
@@ -93,7 +96,7 @@ def geocode_addresses(
     done = set(existing["address"]) if not existing.empty else set()
 
     pending = [a for a in addresses if a not in done]
-    print(f"Geocoding {len(pending)} new addresses ({len(done)} cached)")
+    logger.info(f"Geocoding {len(pending)} new addresses ({len(done)} cached)")
 
     records = []
     for i, address in enumerate(pending, 1):
@@ -102,7 +105,7 @@ def geocode_addresses(
             existing = _merge_geocodes(existing, records)
             existing.to_parquet(out_path, index=False)
             records = []
-            print(f"  flushed {i}/{len(pending)}")
+            logger.info(f"  flushed {i}/{len(pending)}")
 
     result = _merge_geocodes(existing, records)
     result.to_parquet(out_path, index=False)
@@ -122,7 +125,7 @@ def _merge_geocodes(existing: pd.DataFrame, new_records: list[dict]) -> pd.DataF
 def run_etl() -> dict:
     token = get_token()
     geocodes = geocode_addresses(token, hdb_addresses(), out_path=GEOCODES_PARQUET)
-    print(f"Geocodes table: {len(geocodes)} addresses")
+    logger.info(f"Geocodes table: {len(geocodes)} addresses")
 
     return {
         "geocodes": len(geocodes),
