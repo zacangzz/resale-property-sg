@@ -3,10 +3,22 @@ name = "resale-property-sg"
 version = "0.1.0"
 requires-python = ">=3.13"
 dependencies = [
+    "dagster>=1.13.6",
+    "dagster-webserver>=1.13.6",
     "ipykernel",
     "pandas",
     "pyarrow",
     "python-dotenv",
     "requests",
     "seaborn",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+]
+
+[tool.pytest.ini_options]
+pythonpath = [
+    ".",
 ]

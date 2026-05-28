@@ -1,123 +1,115 @@
 # Resale Property SG
 
-This project downloads and transforms Singapore HDB resale transaction data from
-data.gov.sg.
+Local ETL and orchestration for Singapore HDB resale transaction data.
 
-## ETL Overview
+The project downloads HDB resale records from data.gov.sg, transforms them into
+analysis-friendly parquet files, then geocodes unique HDB block/street addresses
+with OneMap. Dagster is used only to orchestrate these local scripts.
 
-The ETL pipeline is implemented in [etl.py](etl.py). It performs three main
-steps:
+## Project Layout
 
-1. Download the source CSV from data.gov.sg.
-2. Transform the raw resale transaction records into analysis-friendly columns.
-3. Save both the raw and transformed datasets as parquet files under `data/`.
+```text
+resale-property-sg/
+  etl-scripts/
+    hdb_resale_etl.py   # HDB resale download and transformation
+    mapping_etl.py      # OneMap address geocoding
+  orchestration/
+    definitions.py      # Dagster assets, job, and schedule
+  data/
+    *.parquet           # Local generated datasets
+  tests/
+```
 
-## Source Dataset
+## Setup
 
-`etl.py` uses the data.gov.sg public dataset API:
+This project uses `uv`.
+
+```bash
+uv sync
+```
+
+For OneMap geocoding, create a local `.env` file with:
+
+```bash
+ONEMAPSG_EMAIL=your-email
+ONEMAPSG_PW=your-password
+```
+
+The HDB resale ETL does not require credentials.
+
+## ETL Scripts
+
+### HDB Resale ETL
+
+Implemented in [`etl-scripts/hdb_resale_etl.py`](etl-scripts/hdb_resale_etl.py).
+
+It downloads the public data.gov.sg HDB resale dataset, standardises columns,
+parses transaction dates, converts numeric/text fields, derives floor-area and
+price-per-area metrics, parses remaining lease years, and writes:
+
+- `data/hdb_downloaded.parquet`
+- `data/hdbresale_transactions_transformed.parquet`
+
+Run it directly with:
+
+```bash
+uv run python etl-scripts/hdb_resale_etl.py
+```
+
+Source dataset:
 
 - Dataset ID: `d_8b84c4ee58e3cfc0ece0d773c8ca6abc`
 - API base URL: `https://api-open.data.gov.sg/v1/public/api/datasets`
 
-The download process starts an API download job, polls until a download URL is
-available, then reads the CSV into a pandas DataFrame.
+### Mapping ETL
 
-## Transformation Steps
+Implemented in [`etl-scripts/mapping_etl.py`](etl-scripts/mapping_etl.py).
 
-The `transform_data()` function applies the following transformations.
+It reads `data/hdbresale_transactions_transformed.parquet`, builds the unique
+block/street address list, geocodes missing addresses through OneMap, reuses any
+existing geocode cache, and writes:
 
-### 1. Standardise Column Names
+- `data/onemap_address_geocodes.parquet`
 
-All input column names are normalised by:
+Run it directly after the HDB ETL:
 
-- trimming leading and trailing whitespace
-- converting names to lowercase
-- replacing spaces with underscores
-
-For example, `Flat Type` becomes `flat_type`.
-
-### 2. Convert Numeric Columns
-
-The following columns are converted to `int64`:
-
-- `floor_area_sqm`
-- `lease_commence_date`
-- `resale_price`
-
-Invalid or missing numeric values are coerced to `NaN`, filled with `0`, then
-converted to integers.
-
-### 3. Convert Text Columns
-
-The following columns are converted to pandas `string` dtype:
-
-- `town`
-- `flat_type`
-- `block`
-- `street_name`
-- `storey_range`
-- `flat_model`
-
-After conversion, `flat_model` is uppercased for consistent categorisation.
-
-### 4. Parse Transaction Month
-
-The `month` column is parsed using the `%Y-%m` format and stored as a new
-datetime column:
-
-- `date`
-
-Two additional date parts are then derived:
-
-- `year`: calendar year from `date`
-- `mth`: calendar month from `date`
-
-### 5. Derive Floor Area in Square Feet
-
-Floor area is converted from square metres to square feet using:
-
-```text
-floor_area_sqft = floor_area_sqm * 10.764
+```bash
+uv run python etl-scripts/mapping_etl.py
 ```
 
-The result is stored in:
+## Dagster Orchestration
 
-- `floor_area_sqft`
+Dagster definitions live in
+[`orchestration/definitions.py`](orchestration/definitions.py).
 
-### 6. Derive Unit Price Metrics
+Registered assets:
 
-Two price-per-area metrics are calculated:
+- `hdb_raw`: runs `hdb_resale_etl.run_etl()`
+- `mapping_raw`: runs `mapping_etl.run_etl()` after `hdb_raw`
 
-```text
-priceper_sqm = resale_price / floor_area_sqm
-priceper_sqft = resale_price / floor_area_sqft
+The `mapping_raw` asset explicitly depends on `hdb_raw`, because the mapping ETL
+reads the transformed HDB parquet output.
+
+Run the local Dagster UI with:
+
+```bash
+uv run dagster dev -m orchestration.definitions
 ```
 
-These columns make it easier to compare resale prices across flats of different
-sizes.
+The configured job is `resale_pipeline`. The optional daily schedule is stopped
+by default.
 
-### 7. Convert Remaining Lease to Decimal Years
+## Tests
 
-The `remaining_lease` text field is parsed for years and optional months.
+Run the full test suite with:
 
-Examples:
+```bash
+uv run pytest
+```
 
-- `60 years` becomes `60.0`
-- `60 years 6 months` becomes `60.5`
+Run the focused Dagster definition tests with:
 
-The derived value is stored in:
+```bash
+uv run python -m unittest tests/test_orchestration_definitions.py -v
+```
 
-- `remaining_lease_years`
-
-If years or months cannot be parsed, they are treated as `0`.
-
-### 8. Sort Rows
-
-The transformed dataset is sorted by `date` and the index is reset.
-
-## Output Files
-
-Running the ETL writes two parquet files:
-
-- `data/hdb_downloaded.parquet`: raw downloaded data
-- `data/hdbresale_transactions_transformed.parquet`: transformed data
