@@ -66,19 +66,23 @@ def get_bq_client(repo_root: Path) -> bigquery.Client:
 
 def load_parquet_to_bq(
     client: bigquery.Client,
-    file_path: Path,
+    file_path,
     dataset_id: str,
     table_name: str,
     location: str = "US",
 ) -> int:
-    """Loads a local Parquet file into a BigQuery table, creating the dataset if needed.
+    """Loads a Parquet file (local or GCS URI) into a BigQuery table, creating the dataset if needed.
 
     Returns the number of rows loaded.
     """
-    if not file_path.exists():
-        err_msg = f"Parquet file not found at: {file_path}"
-        logger.error(err_msg)
-        raise FileNotFoundError(err_msg)
+    is_gcs = str(file_path).startswith("gs://")
+
+    if not is_gcs:
+        file_path_obj = Path(file_path)
+        if not file_path_obj.exists():
+            err_msg = f"Parquet file not found at: {file_path_obj}"
+            logger.error(err_msg)
+            raise FileNotFoundError(err_msg)
 
     # Construct the full dataset reference and create it if it doesn't exist
     dataset_ref = bigquery.Dataset(f"{client.project}.{dataset_id}")
@@ -98,20 +102,36 @@ def load_parquet_to_bq(
         write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
     )
 
-    logger.info(f"Loading '{file_path.name}' into '{client.project}.{dataset_id}.{table_name}'...")
-    try:
-        with open(file_path, "rb") as source_file:
-            job = client.load_table_from_file(
-                source_file,
+    if is_gcs:
+        logger.info(f"Loading '{file_path}' into '{client.project}.{dataset_id}.{table_name}'...")
+        try:
+            job = client.load_table_from_uri(
+                str(file_path),
                 table_ref,
                 job_config=job_config,
             )
-        # Wait for the load job to complete
-        job.result()
-        logger.info("BigQuery load job completed successfully.")
-    except Exception as e:
-        logger.exception(f"Failed to load parquet file to BigQuery: {e}")
-        raise
+            # Wait for the load job to complete
+            job.result()
+            logger.info("BigQuery load job completed successfully.")
+        except Exception as e:
+            logger.exception(f"Failed to load parquet file from GCS to BigQuery: {e}")
+            raise
+    else:
+        file_path_obj = Path(file_path)
+        logger.info(f"Loading '{file_path_obj.name}' into '{client.project}.{dataset_id}.{table_name}'...")
+        try:
+            with open(file_path_obj, "rb") as source_file:
+                job = client.load_table_from_file(
+                    source_file,
+                    table_ref,
+                    job_config=job_config,
+                )
+            # Wait for the load job to complete
+            job.result()
+            logger.info("BigQuery load job completed successfully.")
+        except Exception as e:
+            logger.exception(f"Failed to load parquet file to BigQuery: {e}")
+            raise
 
     # Fetch and return the total row count in the loaded table
     try:

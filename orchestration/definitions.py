@@ -12,13 +12,16 @@ from dagster import (
 )
 from dotenv import load_dotenv
 
-REPO_ROOT = Path(__file__).parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent
 ETL_SCRIPTS = REPO_ROOT / "etl-scripts"
 
 load_dotenv(REPO_ROOT / ".env")
 
-if str(ETL_SCRIPTS) not in sys.path:
-    sys.path.insert(0, str(ETL_SCRIPTS))
+def _ensure_etl_scripts_in_path() -> None:
+    if str(ETL_SCRIPTS) not in sys.path:
+        sys.path.insert(0, str(ETL_SCRIPTS))
+
+_ensure_etl_scripts_in_path()
 
 # Initialize orchestration logger
 from bq_helper import get_logger
@@ -27,6 +30,7 @@ logger = get_logger("orchestration")
 
 @asset
 def hdb_raw(context: AssetExecutionContext) -> None:
+    _ensure_etl_scripts_in_path()
     import hdb_resale_etl
 
     logger.info("Executing hdb_raw asset (HDB Resale ETL download & transform)...")
@@ -37,6 +41,7 @@ def hdb_raw(context: AssetExecutionContext) -> None:
 
 @asset(deps=[hdb_raw])
 def mapping_raw(context: AssetExecutionContext) -> None:
+    _ensure_etl_scripts_in_path()
     import mapping_etl
 
     logger.info("Executing mapping_raw asset (OneMap geocoding)...")
@@ -47,6 +52,7 @@ def mapping_raw(context: AssetExecutionContext) -> None:
 
 @asset(deps=[hdb_raw])
 def hdb_bq_load(context: AssetExecutionContext) -> None:
+    _ensure_etl_scripts_in_path()
     import hdb_resale_etl
     from bq_helper import get_bq_client, load_parquet_to_bq
 
@@ -69,6 +75,7 @@ def hdb_bq_load(context: AssetExecutionContext) -> None:
 
 @asset(deps=[mapping_raw])
 def mapping_bq_load(context: AssetExecutionContext) -> None:
+    _ensure_etl_scripts_in_path()
     import mapping_etl
     from bq_helper import get_bq_client, load_parquet_to_bq
 

@@ -10,9 +10,19 @@ logger = get_logger("mapping_etl")
 
 load_dotenv()
 
-DATA_DIR = Path(__file__).parent.parent / "data"
-HDB_TRANSFORMED_PATH = DATA_DIR / "hdbresale_transactions_transformed.parquet"
-GEOCODES_PARQUET = DATA_DIR / "onemap_address_geocodes.parquet"
+DATA_DIR_ENV = os.getenv("DATA_DIR")
+if DATA_DIR_ENV:
+    DATA_DIR = DATA_DIR_ENV
+else:
+    DATA_DIR = Path(__file__).parent.parent / "data"
+
+def get_path(filename: str) -> str:
+    if isinstance(DATA_DIR, str) and DATA_DIR.startswith("gs://"):
+        return f"{DATA_DIR.rstrip('/')}/{filename}"
+    return str(Path(DATA_DIR) / filename)
+
+HDB_TRANSFORMED_PATH = get_path("hdbresale_transactions_transformed.parquet")
+GEOCODES_PARQUET = get_path("onemap_address_geocodes.parquet")
 
 GEOCODE_COLS = [
     "address", "searchval", "blk_no", "road_name", "building",
@@ -52,8 +62,8 @@ def get_latlong(address: str, token: str) -> pd.DataFrame:
     return pd.DataFrame(response.json()["results"])
 
 
-def hdb_addresses(hdb_path: Path = HDB_TRANSFORMED_PATH) -> list[str]:
-    df = pd.read_parquet(hdb_path, columns=["block", "street_name"])
+def hdb_addresses(hdb_path = HDB_TRANSFORMED_PATH) -> list[str]:
+    df = pd.read_parquet(str(hdb_path), columns=["block", "street_name"])
     addr = (df["block"].astype("string").str.strip() + " "
             + df["street_name"].astype("string").str.strip())
     return sorted(a for a in addr.dropna().unique() if a.strip())
@@ -85,14 +95,28 @@ def _geocode_one(address: str, token: str) -> dict:
 def geocode_addresses(
     token: str,
     addresses: list[str],
-    out_path: Path = GEOCODES_PARQUET,
+    out_path = GEOCODES_PARQUET,
     flush_every: int = 500,
 ) -> pd.DataFrame:
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    if out_path.exists():
-        existing = pd.read_parquet(out_path)
+    is_gcs = str(out_path).startswith("gs://")
+    if not is_gcs:
+        Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+
+    existing = None
+    if is_gcs:
+        try:
+            existing = pd.read_parquet(str(out_path))
+            logger.info(f"Loaded {len(existing)} existing geocodes from GCS cache.")
+        except Exception:
+            logger.info("No existing geocodes found in GCS cache. Starting fresh.")
     else:
+        if Path(out_path).exists():
+            existing = pd.read_parquet(str(out_path))
+            logger.info(f"Loaded {len(existing)} existing geocodes from local cache.")
+
+    if existing is None or existing.empty:
         existing = pd.DataFrame(columns=GEOCODE_COLS)
+
     done = set(existing["address"]) if not existing.empty else set()
 
     pending = [a for a in addresses if a not in done]
@@ -103,12 +127,12 @@ def geocode_addresses(
         records.append(_geocode_one(address, token))
         if i % flush_every == 0:
             existing = _merge_geocodes(existing, records)
-            existing.to_parquet(out_path, index=False)
+            existing.to_parquet(str(out_path), index=False)
             records = []
             logger.info(f"  flushed {i}/{len(pending)}")
 
     result = _merge_geocodes(existing, records)
-    result.to_parquet(out_path, index=False)
+    result.to_parquet(str(out_path), index=False)
     return result
 
 

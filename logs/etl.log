@@ -19,3 +19,36 @@
 2026-05-28 22:43:51,629 - bq_helper - INFO - Successfully verified table in BigQuery. Total rows: 9710
 2026-05-28 22:43:51,629 - load_to_bq - INFO - Standalone load operation finished.
 2026-05-28 22:43:57,411 - bq_helper - INFO - Initializing BigQuery client with credentials: .config/resale-property-sg-d9a2c40ef1b6.json
+2026-05-28 23:18:31,356 - mapping_etl - INFO - Geocoding 2 new addresses (0 cached)
+2026-05-28 23:18:31,358 - mapping_etl - INFO -   flushed 1/2
+2026-05-28 23:18:31,359 - mapping_etl - INFO -   flushed 2/2
+2026-05-28 23:18:31,360 - mapping_etl - INFO - Geocodes table: 1 addresses
+2026-05-28 23:23:09,134 - mapping_etl - INFO - Loaded 9710 existing geocodes from local cache.
+2026-05-28 23:23:09,136 - mapping_etl - INFO - Geocoding 0 new addresses (9710 cached)
+2026-05-28 23:23:09,148 - mapping_etl - INFO - Geocodes table: 9710 addresses
+2026-05-28 23:25:26,078 - hdb_resale_etl - INFO - Download successfully initiated. Proceed to poll download
+2026-05-28 23:25:26,432 - hdb_resale_etl - INFO - Download ready (poll 1/5)
+2026-05-29 00:26:45,787 - mapping_etl - INFO - Geocoding 2 new addresses (0 cached)
+2026-05-29 00:26:45,793 - mapping_etl - INFO -   flushed 1/2
+2026-05-29 00:26:45,800 - mapping_etl - INFO -   flushed 2/2
+2026-05-29 00:26:45,805 - mapping_etl - INFO - Geocodes table: 1 addresses
+2026-05-29 00:32:09,427 - mapping_etl - INFO - Geocoding 2 new addresses (0 cached)
+2026-05-29 00:32:09,429 - mapping_etl - INFO -   flushed 1/2
+2026-05-29 00:32:09,430 - mapping_etl - INFO -   flushed 2/2
+2026-05-29 00:32:09,431 - mapping_etl - INFO - Geocodes table: 1 addresses
+2026-05-29 00:34:26,512 - orchestration - INFO - Executing hdb_raw asset (HDB Resale ETL download & transform)...
+2026-05-29 00:34:26,976 - hdb_resale_etl - INFO - Download successfully initiated. Proceed to poll download
+2026-05-29 00:34:27,239 - hdb_resale_etl - INFO - Download ready (poll 1/5)
+2026-05-29 00:34:28,423 - orchestration - INFO - Finished hdb_raw asset successfully. Transformed rows: 231971
+2026-05-29 00:34:50,522 - mapping_etl - INFO - Geocoding 2 new addresses (0 cached)
+2026-05-29 00:34:50,523 - mapping_etl - INFO -   flushed 1/2
+2026-05-29 00:34:50,524 - mapping_etl - INFO -   flushed 2/2
+2026-05-29 00:34:50,526 - mapping_etl - INFO - Geocodes table: 1 addresses
+2026-05-29 00:34:53,215 - orchestration - INFO - Executing hdb_raw asset (HDB Resale ETL download & transform)...
+2026-05-29 00:34:53,570 - hdb_resale_etl - INFO - Download successfully initiated. Proceed to poll download
+2026-05-29 00:34:53,817 - hdb_resale_etl - INFO - Download ready (poll 1/5)
+2026-05-29 00:34:55,522 - orchestration - INFO - Finished hdb_raw asset successfully. Transformed rows: 231971
+2026-05-29 00:37:27,139 - orchestration - INFO - Executing hdb_raw asset (HDB Resale ETL download & transform)...
+2026-05-29 00:37:27,612 - hdb_resale_etl - INFO - Download successfully initiated. Proceed to poll download
+2026-05-29 00:37:27,921 - hdb_resale_etl - INFO - Download ready (poll 1/5)
+2026-05-29 00:37:29,059 - orchestration - INFO - Finished hdb_raw asset successfully. Transformed rows: 231971

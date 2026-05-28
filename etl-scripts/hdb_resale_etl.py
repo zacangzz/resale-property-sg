@@ -1,3 +1,4 @@
+import os
 import time
 from pathlib import Path
 import requests
@@ -7,9 +8,20 @@ from bq_helper import get_logger
 logger = get_logger("hdb_resale_etl")
 
 DATASET_ID = "d_8b84c4ee58e3cfc0ece0d773c8ca6abc"
-DATA_DIR = Path(__file__).parent.parent / "data"
-RAW_PATH = DATA_DIR / "hdb_downloaded.parquet"
-TRANSFORMED_PATH = DATA_DIR / "hdbresale_transactions_transformed.parquet"
+
+DATA_DIR_ENV = os.getenv("DATA_DIR")
+if DATA_DIR_ENV:
+    DATA_DIR = DATA_DIR_ENV
+else:
+    DATA_DIR = Path(__file__).parent.parent / "data"
+
+def get_path(filename: str) -> str:
+    if isinstance(DATA_DIR, str) and DATA_DIR.startswith("gs://"):
+        return f"{DATA_DIR.rstrip('/')}/{filename}"
+    return str(Path(DATA_DIR) / filename)
+
+RAW_PATH = get_path("hdb_downloaded.parquet")
+TRANSFORMED_PATH = get_path("hdbresale_transactions_transformed.parquet")
 
 API_BASE = "https://api-open.data.gov.sg/v1/public/api/datasets"
 STR_COLS = ["town", "flat_type", "block", "street_name", "storey_range", "flat_model"]
@@ -63,11 +75,13 @@ def transform_data(df: pd.DataFrame) -> pd.DataFrame:
     return t.sort_values("date").reset_index(drop=True)
 
 
-def load(df: pd.DataFrame, raw: pd.DataFrame, raw_path: Path = RAW_PATH, transformed_path: Path = TRANSFORMED_PATH) -> None:
-    raw_path.parent.mkdir(parents=True, exist_ok=True)
-    transformed_path.parent.mkdir(parents=True, exist_ok=True)
-    raw.to_parquet(raw_path, index=False)
-    df.to_parquet(transformed_path, index=False)
+def load(df: pd.DataFrame, raw: pd.DataFrame, raw_path = RAW_PATH, transformed_path = TRANSFORMED_PATH) -> None:
+    if not str(raw_path).startswith("gs://"):
+        Path(raw_path).parent.mkdir(parents=True, exist_ok=True)
+    if not str(transformed_path).startswith("gs://"):
+        Path(transformed_path).parent.mkdir(parents=True, exist_ok=True)
+    raw.to_parquet(str(raw_path), index=False)
+    df.to_parquet(str(transformed_path), index=False)
 
 
 def run_etl() -> pd.DataFrame:
