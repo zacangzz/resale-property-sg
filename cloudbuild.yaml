@@ -31,4 +31,5 @@ steps:
       - 'asia-southeast1'
 
 options:
-  logging: CLOUD_LOGGING
+  logging: CLOUD_LOGGING_ONLY
+
