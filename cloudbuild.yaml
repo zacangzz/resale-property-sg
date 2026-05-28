@@ -1,0 +1,34 @@
+steps:
+  # Step 1: Build the Docker container
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Build'
+    args:
+      - 'build'
+      - '-t'
+      - 'asia-southeast1-docker.pkg.dev/$PROJECT_ID/resale-repo/resale-property-sg:$COMMIT_SHA'
+      - '.'
+
+  # Step 2: Push the image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Push'
+    args:
+      - 'push'
+      - 'asia-southeast1-docker.pkg.dev/$PROJECT_ID/resale-repo/resale-property-sg:$COMMIT_SHA'
+
+  # Step 3: Deploy/Update the Cloud Run Job
+  # This uses the gcloud CLI to update the container image of the existing job.
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'Deploy'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'jobs'
+      - 'update'
+      - 'resale-pipeline-job'
+      - '--image'
+      - 'asia-southeast1-docker.pkg.dev/$PROJECT_ID/resale-repo/resale-property-sg:$COMMIT_SHA'
+      - '--region'
+      - 'asia-southeast1'
+
+options:
+  logging: CLOUD_LOGGING
