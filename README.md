@@ -97,13 +97,18 @@ docker run --env-file .env resale-property-sg
 
 ### 2. Deploying as a Cloud Run Job
 
+For continuous delivery, the pipeline uses **Google Cloud Build** to automatically build and deploy container updates.
+
+> [!IMPORTANT]
+> **First-Time Provisioning**: Before your automated Cloud Build triggers can deploy updates, you must create the Cloud Run Job once manually (see Option B below). Once the job exists, Cloud Build will successfully manage all future updates.
+
 #### Option A: Continuous Deployment via Google Cloud Build (Recommended)
-This project includes a [`cloudbuild.yaml`](file:///Users/zacang/Documents/datascience/resale-property-sg/cloudbuild.yaml) configuration to automatically build, push to Google Artifact Registry, and deploy updates to your Cloud Run Job whenever you push to the `main` branch. 
+Once the job is created, this project uses the [`cloudbuild.yaml`](file:///Users/zacang/Documents/datascience/resale-property-sg/cloudbuild.yaml) configuration to automatically build, push to Google Artifact Registry, and deploy updates to your Cloud Run Job whenever you push to the `main` branch.
 
-For the complete, step-by-step setup guide (including IAM permissions and trigger creation), see **[`DEPLOYMENT.md`](file:///Users/zacang/Documents/datascience/resale-property-sg/DEPLOYMENT.md)**.
+For the complete, step-by-step setup guide (including IAM permissions, trigger creation, and testing instructions), see **[`docs/DEPLOYMENT.md`](file:///Users/zacang/Documents/datascience/resale-property-sg/docs/DEPLOYMENT.md)**.
 
-#### Option B: Manual Deploy via CLI
-Alternatively, you can manually build and deploy the container job from your terminal:
+#### Option B: First-Time Setup & Manual Deploy via CLI
+Run this command in your terminal to manually create and configure the Cloud Run Job for the first time:
 ```bash
 gcloud run jobs deploy resale-pipeline-job \
     --source . \
@@ -111,6 +116,7 @@ gcloud run jobs deploy resale-pipeline-job \
     --service-account serviceaccount-001@resale-property-sg.iam.gserviceaccount.com \
     --set-env-vars="DATA_DIR=gs://resale-property-sg-bucket/data,GCP_PROJECT=resale-property-sg,BQ_LOCATION=asia-southeast1,ONEMAPSG_EMAIL=your-email@example.com,ONEMAPSG_PW=your-password"
 ```
+
 
 
 ### 3. Scheduling Daily Triggers

@@ -61,6 +61,11 @@ gcloud projects add-iam-policy-binding resale-property-sg \
 gcloud iam service-accounts add-iam-policy-binding serviceaccount-001@resale-property-sg.iam.gserviceaccount.com \
     --member="serviceAccount:688608823915@cloudbuild.gserviceaccount.com" \
     --role="roles/iam.serviceAccountUser"
+
+# 3. Allow your Service Account to write logs to Cloud Logging
+gcloud projects add-iam-policy-binding resale-property-sg \
+    --member="serviceAccount:serviceaccount-001@resale-property-sg.iam.gserviceaccount.com" \
+    --role="roles/logging.logWriter"
 ```
 
 ---
@@ -81,6 +86,19 @@ gcloud iam service-accounts add-iam-policy-binding serviceaccount-001@resale-pro
 
 ---
 
+## 🏗️ Step 3.5: One-Time Manual Job Provisioning
+
+Before Cloud Build triggers can deploy updates successfully, the Cloud Run Job must exist. Run this command once in your terminal to create the job and bind it to your service account:
+
+```bash
+gcloud run jobs deploy resale-pipeline-job \
+    --image="asia-southeast1-docker.pkg.dev/resale-property-sg/resale-repo/resale-property-sg:manual" \
+    --region="asia-southeast1" \
+    --service-account="serviceaccount-001@resale-property-sg.iam.gserviceaccount.com"
+```
+
+---
+
 ## 🚀 Step 4: Commit, Push, and Verify
 
 Your repository already has the correct build steps configured in [`cloudbuild.yaml`](file:///Users/zacang/Documents/datascience/resale-property-sg/cloudbuild.yaml). Push your changes to trigger your first automated deploy:
@@ -97,3 +115,17 @@ git push origin main
 To monitor the build progress:
 1. Open the [GCP Cloud Build History Dashboard](https://console.cloud.google.com/cloud-build/builds?project=resale-property-sg).
 2. Once the build finishes successfully, your Cloud Run Job will be updated. You can view it under [Cloud Run Jobs](https://console.cloud.google.com/run/jobs?project=resale-property-sg).
+
+---
+
+## 🧪 Manual Execution (Alternative to Git Push)
+
+If you want to manually trigger the build and deployment pipeline from your local terminal using `cloudbuild.yaml` (without pushing to GitHub), run:
+
+```bash
+gcloud builds submit --config=cloudbuild.yaml --substitutions=COMMIT_SHA="manual" .
+```
+
+> [!NOTE]
+> The `--substitutions=COMMIT_SHA="manual"` parameter is required for manual builds because the Git trigger's `$COMMIT_SHA` variable is not automatically populated when run outside of a Git event.
+
