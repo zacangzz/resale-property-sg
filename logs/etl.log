@@ -56,3 +56,9 @@
 2026-05-29 10:54:00,457 - mapping_etl - INFO -   flushed 1/2
 2026-05-29 10:54:00,458 - mapping_etl - INFO -   flushed 2/2
 2026-05-29 10:54:00,461 - mapping_etl - INFO - Geocodes table: 1 addresses
+2026-05-29 21:22:21,902 - hdb_resale_etl - INFO - Active DATA_DIR: /Users/zacang/Documents/datascience/resale-property-sg/data (GCS: False)
+2026-05-29 21:22:22,287 - hdb_resale_etl - INFO - Download successfully initiated. Proceed to poll download
+2026-05-29 21:22:22,537 - hdb_resale_etl - INFO - Download ready (poll 1/5)
+2026-05-29 21:22:23,116 - hdb_resale_etl - INFO - Saving raw data...
+2026-05-29 21:22:23,174 - hdb_resale_etl - INFO - Transforming data...
+2026-05-29 21:22:23,382 - hdb_resale_etl - INFO - Saving transformed data...
