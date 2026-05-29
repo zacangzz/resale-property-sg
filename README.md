@@ -119,8 +119,32 @@ gcloud run jobs deploy resale-pipeline-job \
 
 
 
-### 3. Scheduling Daily Triggers
-Schedule the job to run daily at 2:00 AM Singapore Time via Cloud Scheduler:
+### 3. Triggering & Monitoring the Job
+
+Once the Cloud Run Job has been successfully deployed, you can trigger it manually to test the end-to-end execution:
+
+* **Via the CLI**:
+  ```bash
+  gcloud run jobs execute resale-pipeline-job --region=asia-southeast1
+  ```
+* **Via GCP Console**: 
+  Go to [Cloud Run > Jobs](https://console.cloud.google.com/run/jobs?project=resale-property-sg), click on `resale-pipeline-job`, and click **Execute**.
+
+#### 🔍 Monitoring Run Executions & Logs
+To verify that your Dagster ETL job is running successfully and to inspect its output:
+* **Check Execution History**:
+  ```bash
+  gcloud run jobs executions list --job=resale-pipeline-job --region=asia-southeast1
+  ```
+* **View Live Logs**: 
+  Go to the [Cloud Run Console](https://console.cloud.google.com/run/jobs?project=resale-property-sg), select your job, click on the active execution (e.g., `resale-pipeline-job-abcde`), and open the **Logs** tab to see your Dagster asset materialization logs in real time.
+
+---
+
+### 4. Time-Based Scheduling (Google Cloud Scheduler)
+
+To run the pipeline automatically every day, create a serverless trigger using **Google Cloud Scheduler** (a managed cron service) to invoke the Cloud Run Job:
+
 ```bash
 gcloud scheduler jobs create http resale-pipeline-daily-trigger \
     --schedule="0 2 * * *" \
@@ -130,6 +154,12 @@ gcloud scheduler jobs create http resale-pipeline-daily-trigger \
     --oauth-service-account-email="serviceaccount-001@resale-property-sg.iam.gserviceaccount.com" \
     --region=asia-southeast1
 ```
+
+#### 🔍 Verifying the Schedule
+1. Open the [Google Cloud Scheduler Console](https://console.cloud.google.com/cloudscheduler?project=resale-property-sg).
+2. Locate `resale-pipeline-daily-trigger`.
+3. Here you can check the **Next run time**, review **Last run status** logs, or click **Force Run** to test that the scheduler triggers the Cloud Run Job correctly.
+
 
 ---
 

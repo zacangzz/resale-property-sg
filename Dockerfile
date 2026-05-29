@@ -28,5 +28,5 @@ RUN uv sync --no-dev --frozen
 # Copy the rest of the orchestration and etl scripts
 COPY . .
 
-# Set default CMD to materialize all Dagster assets in the orchestration module
-CMD ["uv", "run", "dagster", "asset", "materialize", "--select", "*", "-m", "orchestration.definitions"]
+# Set default CMD to execute the Dagster job in the orchestration module
+CMD ["uv", "run", "dagster", "job", "execute", "-m", "orchestration.definitions", "-j", "resale_pipeline"]

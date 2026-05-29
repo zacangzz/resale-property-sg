@@ -52,3 +52,7 @@
 2026-05-29 00:37:27,612 - hdb_resale_etl - INFO - Download successfully initiated. Proceed to poll download
 2026-05-29 00:37:27,921 - hdb_resale_etl - INFO - Download ready (poll 1/5)
 2026-05-29 00:37:29,059 - orchestration - INFO - Finished hdb_raw asset successfully. Transformed rows: 231971
+2026-05-29 10:54:00,454 - mapping_etl - INFO - Geocoding 2 new addresses (0 cached)
+2026-05-29 10:54:00,457 - mapping_etl - INFO -   flushed 1/2
+2026-05-29 10:54:00,458 - mapping_etl - INFO -   flushed 2/2
+2026-05-29 10:54:00,461 - mapping_etl - INFO - Geocodes table: 1 addresses
