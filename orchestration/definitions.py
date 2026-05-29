@@ -9,6 +9,7 @@ from dagster import (
     ScheduleDefinition,
     asset,
     define_asset_job,
+    in_process_executor,
 )
 from dotenv import load_dotenv
 
@@ -96,7 +97,11 @@ def mapping_bq_load(context: AssetExecutionContext) -> None:
     logger.info("Finished mapping_bq_load asset successfully.")
 
 
-pipeline_job = define_asset_job("resale_pipeline", selection="*")
+pipeline_job = define_asset_job(
+    "resale_pipeline",
+    selection="*",
+    executor_def=in_process_executor,
+)
 
 daily_schedule = ScheduleDefinition(
     job=pipeline_job,

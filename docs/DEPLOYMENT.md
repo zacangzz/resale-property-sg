@@ -52,9 +52,13 @@ Cloud Build needs permission to deploy the Cloud Run Job and to act as your pipe
 Run the following commands in your terminal (using your project number `688608823915`):
 
 ```bash
-# 1. Allow Cloud Build to deploy and update Cloud Run Jobs
+# 1. Allow Cloud Build and your custom Service Account to deploy and update Cloud Run Jobs
 gcloud projects add-iam-policy-binding resale-property-sg \
     --member="serviceAccount:688608823915@cloudbuild.gserviceaccount.com" \
+    --role="roles/run.developer"
+
+gcloud projects add-iam-policy-binding resale-property-sg \
+    --member="serviceAccount:serviceaccount-001@resale-property-sg.iam.gserviceaccount.com" \
     --role="roles/run.developer"
 
 # 2. Allow Cloud Build and your custom Service Account to push images to Artifact Registry

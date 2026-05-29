@@ -4,7 +4,8 @@ FROM python:3.13-slim
 # Set environment variables for Python and uv
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    UV_PROJECT_ENVIRONMENT=/usr/local
+    UV_PROJECT_ENVIRONMENT=/usr/local \
+    DAGSTER_TELEMETRY_DISABLED=1
 
 # Install system dependencies (like curl)
 RUN apt-get update && apt-get install -y --no-install-recommends \

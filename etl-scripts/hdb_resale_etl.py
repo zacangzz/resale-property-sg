@@ -15,6 +15,10 @@ if DATA_DIR_ENV:
 else:
     DATA_DIR = Path(__file__).parent.parent / "data"
 
+# Validate GCS utilization
+is_gcs = isinstance(DATA_DIR, str) and DATA_DIR.startswith("gs://")
+logger.info(f"Active DATA_DIR: {DATA_DIR} (GCS: {is_gcs})")
+
 def get_path(filename: str) -> str:
     if isinstance(DATA_DIR, str) and DATA_DIR.startswith("gs://"):
         return f"{DATA_DIR.rstrip('/')}/{filename}"
@@ -31,48 +35,58 @@ SQM_TO_SQFT = 10.764
 
 def download_file(dataset_id: str = DATASET_ID, max_polls: int = 5, poll_interval: float = 3.0) -> pd.DataFrame:
     s = requests.Session()
-    init = s.get(f"{API_BASE}/{dataset_id}/initiate-download", json={})
+    init = s.get(f"{API_BASE}/{dataset_id}/initiate-download", json={}, timeout=30)
     init.raise_for_status()
     logger.info(init.json()["data"]["message"])
 
     for i in range(max_polls):
-        poll = s.get(f"{API_BASE}/{dataset_id}/poll-download", json={})
+        poll = s.get(f"{API_BASE}/{dataset_id}/poll-download", json={}, timeout=30)
         poll.raise_for_status()
         data = poll.json()["data"]
         if "url" in data:
             logger.info(f"Download ready (poll {i+1}/{max_polls})")
-            return pd.read_csv(data["url"])
+            # Memory optimization: specify compact dtypes and use pyarrow engine
+            dtypes = {
+                "town": "category",
+                "flat_type": "category",
+                "storey_range": "category",
+                "flat_model": "category",
+                "lease_commence_date": "int16",
+                "resale_price": "int32",
+                "floor_area_sqm": "float32",
+            }
+            return pd.read_csv(data["url"], dtype=dtypes, engine="pyarrow")
         logger.warning(f"{i+1}/{max_polls}: not ready, status={data.get('status')}")
         time.sleep(poll_interval)
     raise RuntimeError(f"No download URL after {max_polls} polls")
 
 
 def transform_data(df: pd.DataFrame) -> pd.DataFrame:
-    t = df.copy()
-    t.columns = t.columns.str.strip().str.lower().str.replace(" ", "_")
+    # Perform operations directly on the dataframe or reassign columns to avoid copying
+    df.columns = df.columns.str.strip().str.lower().str.replace(" ", "_")
 
     for col in INT_COLS:
-        t[col] = pd.to_numeric(t[col], errors="coerce").fillna(0).astype("int64")
+        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype("int32")
     for col in STR_COLS:
-        t[col] = t[col].astype("string")
-    t["flat_model"] = t["flat_model"].str.upper()
+        df[col] = df[col].astype("category") # use category to save massive memory
+    df["flat_model"] = df["flat_model"].str.upper().astype("category")
 
-    t["date"] = pd.to_datetime(t["month"], format="%Y-%m", errors="coerce")
-    t["year"] = t["date"].dt.year.astype("int64")
-    t["mth"] = t["date"].dt.month.astype("int64")
+    df["date"] = pd.to_datetime(df["month"], format="%Y-%m", errors="coerce")
+    df["year"] = df["date"].dt.year.astype("int16")
+    df["mth"] = df["date"].dt.month.astype("int8")
 
-    t["floor_area_sqft"] = t["floor_area_sqm"] * SQM_TO_SQFT
-    t["priceper_sqm"] = t["resale_price"] / t["floor_area_sqm"]
-    t["priceper_sqft"] = t["resale_price"] / t["floor_area_sqft"]
+    df["floor_area_sqft"] = (df["floor_area_sqm"] * SQM_TO_SQFT).astype("float32")
+    df["priceper_sqm"] = (df["resale_price"] / df["floor_area_sqm"]).astype("float32")
+    df["priceper_sqft"] = (df["resale_price"] / df["floor_area_sqft"]).astype("float32")
 
-    lease = t["remaining_lease"].astype("string").str.extract(
+    lease = df["remaining_lease"].astype("string").str.extract(
         r"(?P<years>\d+)\s*years?(?:\s*(?P<months>\d+)\s*months?)?"
     )
-    years = pd.to_numeric(lease["years"], errors="coerce").fillna(0)
-    months = pd.to_numeric(lease["months"], errors="coerce").fillna(0)
-    t["remaining_lease_years"] = years + months / 12
+    years = pd.to_numeric(lease["years"], errors="coerce").fillna(0).astype("int16")
+    months = pd.to_numeric(lease["months"], errors="coerce").fillna(0).astype("int8")
+    df["remaining_lease_years"] = (years + months / 12).astype("float32")
 
-    return t.sort_values("date").reset_index(drop=True)
+    return df.sort_values("date").reset_index(drop=True)
 
 
 def load(df: pd.DataFrame, raw: pd.DataFrame, raw_path = RAW_PATH, transformed_path = TRANSFORMED_PATH) -> None:
@@ -85,9 +99,28 @@ def load(df: pd.DataFrame, raw: pd.DataFrame, raw_path = RAW_PATH, transformed_p
 
 
 def run_etl() -> pd.DataFrame:
+    import gc
     raw = download_file()
+    
+    # Save raw file immediately to GCS/local and clear raw memory
+    logger.info("Saving raw data...")
+    if not str(RAW_PATH).startswith("gs://"):
+        Path(RAW_PATH).parent.mkdir(parents=True, exist_ok=True)
+    raw.to_parquet(str(RAW_PATH), index=False)
+    
+    logger.info("Transforming data...")
     df = transform_data(raw)
-    load(df, raw)
+    
+    # Save transformed data to GCS/local
+    logger.info("Saving transformed data...")
+    if not str(TRANSFORMED_PATH).startswith("gs://"):
+        Path(TRANSFORMED_PATH).parent.mkdir(parents=True, exist_ok=True)
+    df.to_parquet(str(TRANSFORMED_PATH), index=False)
+    
+    # Clean up memory explicitly
+    del raw
+    gc.collect()
+    
     return df
 
 

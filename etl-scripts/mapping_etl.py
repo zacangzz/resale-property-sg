@@ -16,6 +16,10 @@ if DATA_DIR_ENV:
 else:
     DATA_DIR = Path(__file__).parent.parent / "data"
 
+# Validate GCS utilization
+is_gcs = isinstance(DATA_DIR, str) and DATA_DIR.startswith("gs://")
+logger.info(f"Active DATA_DIR: {DATA_DIR} (GCS: {is_gcs})")
+
 def get_path(filename: str) -> str:
     if isinstance(DATA_DIR, str) and DATA_DIR.startswith("gs://"):
         return f"{DATA_DIR.rstrip('/')}/{filename}"
@@ -43,7 +47,7 @@ def get_token() -> str:
         "password": os.getenv("ONEMAPSG_PW"),
     }
     headers = {"User-Agent": USER_AGENT}
-    response = requests.post(url, headers=headers, json=params)
+    response = requests.post(url, headers=headers, json=params, timeout=30)
     response.raise_for_status()
     return response.json()["access_token"]
 
@@ -57,7 +61,7 @@ def get_latlong(address: str, token: str) -> pd.DataFrame:
         "getAddrDetails": "Y",
         "pageNum": 1,
     }
-    response = requests.get(url, headers=headers, params=params)
+    response = requests.get(url, headers=headers, params=params, timeout=30)
     response.raise_for_status()
     return pd.DataFrame(response.json()["results"])
 
@@ -96,8 +100,11 @@ def geocode_addresses(
     token: str,
     addresses: list[str],
     out_path = GEOCODES_PARQUET,
-    flush_every: int = 500,
+    flush_every: int = 100, # Flush more frequently to save progress incrementally
 ) -> pd.DataFrame:
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    import gc
+
     is_gcs = str(out_path).startswith("gs://")
     if not is_gcs:
         Path(out_path).parent.mkdir(parents=True, exist_ok=True)
@@ -122,18 +129,39 @@ def geocode_addresses(
     pending = [a for a in addresses if a not in done]
     logger.info(f"Geocoding {len(pending)} new addresses ({len(done)} cached)")
 
-    records = []
-    for i, address in enumerate(pending, 1):
-        records.append(_geocode_one(address, token))
-        if i % flush_every == 0:
-            existing = _merge_geocodes(existing, records)
-            existing.to_parquet(str(out_path), index=False)
-            records = []
-            logger.info(f"  flushed {i}/{len(pending)}")
+    if not pending:
+        logger.info("No new addresses to geocode.")
+        return existing
 
-    result = _merge_geocodes(existing, records)
-    result.to_parquet(str(out_path), index=False)
-    return result
+    # Parallel execution with ThreadPoolExecutor (safe max_workers to respect rate limits)
+    max_workers = 5
+
+    for chunk_start in range(0, len(pending), flush_every):
+        chunk = pending[chunk_start:chunk_start + flush_every]
+        logger.info(f"Processing chunk {chunk_start // flush_every + 1}: geocoding {len(chunk)} addresses...")
+
+        records = []
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_addr = {executor.submit(_geocode_one, addr, token): addr for addr in chunk}
+            for future in as_completed(future_to_addr):
+                addr = future_to_addr[future]
+                try:
+                    res = future.result()
+                    records.append(res)
+                except Exception as e:
+                    logger.error(f"Error geocoding {addr}: {e}")
+                    records.append({"address": addr})
+
+        # Merge chunk records with existing and immediately flush to GCS
+        existing = _merge_geocodes(existing, records)
+        existing.to_parquet(str(out_path), index=False)
+        logger.info(f"  Flushed progress up to address {chunk_start + len(chunk)}/{len(pending)} to GCS.")
+
+        # Clean up chunk records memory
+        del records
+        gc.collect()
+
+    return existing
 
 
 def _merge_geocodes(existing: pd.DataFrame, new_records: list[dict]) -> pd.DataFrame:
