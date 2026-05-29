@@ -29,7 +29,7 @@ steps:
       - 'asia-southeast1-docker.pkg.dev/$PROJECT_ID/resale-repo/resale-property-sg:$COMMIT_SHA'
       - '--region'
       - 'asia-southeast1'
-      - '--timeout=900'
+      - '--task-timeout=900'
       - '--update-env-vars=DATA_DIR=gs://resale-property-sg-bucket/data'
 
 options:

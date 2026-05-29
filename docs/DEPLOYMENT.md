@@ -57,9 +57,13 @@ gcloud projects add-iam-policy-binding resale-property-sg \
     --member="serviceAccount:688608823915@cloudbuild.gserviceaccount.com" \
     --role="roles/run.developer"
 
-# 2. Allow Cloud Build to push images to Artifact Registry
+# 2. Allow Cloud Build and your custom Service Account to push images to Artifact Registry
 gcloud projects add-iam-policy-binding resale-property-sg \
     --member="serviceAccount:688608823915@cloudbuild.gserviceaccount.com" \
+    --role="roles/artifactregistry.writer"
+
+gcloud projects add-iam-policy-binding resale-property-sg \
+    --member="serviceAccount:serviceaccount-001@resale-property-sg.iam.gserviceaccount.com" \
     --role="roles/artifactregistry.writer"
 
 # 3. Allow Cloud Build to act as your runtime service account
